@@ -73,6 +73,63 @@ class ErrorMessages:
     VALID_ERROR = "有効な値を送信してください。"
 
 
+def create_reply(message):
+    if message.method == "add":
+        todo = Todo(title=message.title, complete=False)
+        db.session.add(todo)
+        db.session.commit()
+
+        return ("add\n"
+                f"title: {message.title}")
+
+    elif message.method == "get_list":
+        incompletes = Todo.query.filter_by(complete=False).all()
+        completes = Todo.query.filter_by(complete=True).all()
+
+        reply = "incompletes:\n"
+        for incomplete in incompletes:
+            reply += f"id: {incomplete.id}, title: {incomplete.title}\n"
+
+        reply += "complete:\n"
+        for complete in completes:
+            reply += f"id: {complete.id}, title: {complete.title}\n"
+
+        return reply
+
+    elif message.method == "delete":
+        todo = Todo.query.filter_by(id=message.id).first()
+        db.session.delete(todo)
+        db.session.commit()
+
+        return ("delete\n"
+                f"title: {todo.title}")
+
+    elif message.method == "complete":
+        todo = Todo.query.filter_by(id=message.id).first()
+        todo.complete = True
+        db.session.commit()
+
+        return ("complete\n"
+                f"title: {todo.title}")
+
+    elif message.method == "update":
+        todo = Todo.query.filter_by(id=message.id).first()
+        todo.title = message.title
+        db.session.commit()
+
+        return ("update\n"
+                f"id: {todo.id}, title: {todo.title}")
+
+    elif message.method == "get":
+        todo = Todo.query.filter_by(id=message.id).first()
+
+        return ("get\n"
+                f"id: {todo.id}, title: {todo.title}")
+
+    else:
+        return ErrorMessages.VALID_ERROR
+
+
 @app.route('/', methods=['POST'])
 def main():
     signature = request.headers['X-Line-Signature']
@@ -89,59 +146,7 @@ def main():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     message = Message(event.message.text)
-
-    if message.method == "add":
-        todo = Todo(title=message.title, complete=False)
-        db.session.add(todo)
-        db.session.commit()
-
-        reply = ("add\n"
-                 f"title: {message.title}")
-
-    elif message.method == "get_list":
-        incompletes = Todo.query.filter_by(complete=False).all()
-        completes = Todo.query.filter_by(complete=True).all()
-
-        reply = "incompletes:\n"
-        for incomplete in incompletes:
-            reply += f"id: {incomplete.id}, title: {incomplete.title}\n"
-
-        reply += "complete:\n"
-        for complete in completes:
-            reply += f"id: {complete.id}, title: {complete.title}\n"
-
-    elif message.method == "delete":
-        todo = Todo.query.filter_by(id=message.id).first()
-        db.session.delete(todo)
-        db.session.commit()
-
-        reply = ("delete\n"
-                 f"title: {todo.title}")
-
-    elif message.method == "complete":
-        todo = Todo.query.filter_by(id=message.id).first()
-        todo.complete = True
-        db.session.commit()
-
-        reply = ("complete\n"
-                 f"title: {todo.title}")
-
-    elif message.method == "update":
-        todo = Todo.query.filter_by(id=message.id).first()
-        todo.title = message.title
-        db.session.commit()
-
-        reply = ("update\n"
-                 f"id: {todo.id}, title: {todo.title}")
-
-    elif message.method == "get":
-        todo = Todo.query.filter_by(id=message.id).first()
-
-        reply = ("get\n"
-                 f"id: {todo.id}, title: {todo.title}")
-
-    else:
-        reply = ErrorMessages.VALID_ERROR
+    reply = create_reply(message)
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
