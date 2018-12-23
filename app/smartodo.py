@@ -1,5 +1,6 @@
 from flask import Flask, request, abort
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm.exc import NoResultFound
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
@@ -15,6 +16,40 @@ class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200))
     complete = db.Column(db.Boolean)
+
+
+class TodoDAO:
+    @staticmethod
+    def find_by_id(id):
+        try:
+            todo = Todo.query.filter_by(id=id).first()
+            return todo
+        except NoResultFound:
+            return None
+
+    @staticmethod
+    def add(todo):
+        db.session.add(todo)
+
+    @staticmethod
+    def delete(todo):
+        db.session.delete(todo)
+
+    @staticmethod
+    def find_incompletes():
+        try:
+            completes = Todo.query.filter_by(complete=False).all()
+            return completes
+        except NoResultFound:
+            return None
+
+    @staticmethod
+    def find_completes():
+        try:
+            completes = Todo.query.filter_by(complete=True).all()
+            return completes
+        except NoResultFound:
+            return None
 
 
 line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
@@ -78,15 +113,15 @@ def create_reply(text):
 
     if message.method == "add":
         todo = Todo(title=message.title, complete=False)
-        db.session.add(todo)
+        TodoDAO.add(todo)
         db.session.commit()
 
         return ("add\n"
                 f"title: {todo.title}")
 
     elif message.method == "get_list":
-        incompletes = Todo.query.filter_by(complete=False).all()
-        completes = Todo.query.filter_by(complete=True).all()
+        incompletes = TodoDAO.find_incompletes()
+        completes = TodoDAO.find_completes()
 
         reply = "incompletes:\n"
         for incomplete in incompletes:
@@ -99,15 +134,15 @@ def create_reply(text):
         return reply
 
     elif message.method == "delete":
-        todo = Todo.query.filter_by(id=message.id).first()
-        db.session.delete(todo)
+        todo = TodoDAO.find_by_id(message.id)
+        TodoDAO.delete(todo)
         db.session.commit()
 
         return ("delete\n"
                 f"title: {todo.title}")
 
     elif message.method == "complete":
-        todo = Todo.query.filter_by(id=message.id).first()
+        todo = TodoDAO.find_by_id(message.id)
         todo.complete = True
         db.session.commit()
 
@@ -115,7 +150,7 @@ def create_reply(text):
                 f"title: {todo.title}")
 
     elif message.method == "update":
-        todo = Todo.query.filter_by(id=message.id).first()
+        todo = TodoDAO.find_by_id(message.id)
         todo.title = message.title
         db.session.commit()
 
@@ -123,7 +158,7 @@ def create_reply(text):
                 f"id: {todo.id}, title: {todo.title}")
 
     elif message.method == "get":
-        todo = Todo.query.filter_by(id=message.id).first()
+        todo = TodoDAO.find_by_id(message.id)
 
         return ("get\n"
                 f"id: {todo.id}, title: {todo.title}")
