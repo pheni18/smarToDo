@@ -82,7 +82,7 @@ def create_reply(text):
         db.session.commit()
 
         return ("add\n"
-                f"title: {message.title}")
+                f"title: {todo.title}")
 
     elif message.method == "get_list":
         incompletes = Todo.query.filter_by(complete=False).all()
