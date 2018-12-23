@@ -73,7 +73,9 @@ class ErrorMessages:
     VALID_ERROR = "有効な値を送信してください。"
 
 
-def create_reply(message):
+def create_reply(text):
+    message = Message(text)
+
     if message.method == "add":
         todo = Todo(title=message.title, complete=False)
         db.session.add(todo)
@@ -145,8 +147,7 @@ def main():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    message = Message(event.message.text)
-    reply = create_reply(message)
+    reply = create_reply(event.message.text)
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
